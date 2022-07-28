@@ -173,6 +173,6 @@ EOF
         ;;
 esac
 git init >/dev/null 2>&1
-git add * >/dev/null 2>&1
+git add * .gitignore >/dev/null 2>&1
 git commit -m "Initial commit by initproj" >/dev/null 2>&1
-echo Initialized a project named $proj for you! Run \`cd ${proj,,}\` to start working on it.
+echo Initialized a project named $proj for you! Run \`cd $proj\` to start working on it.
