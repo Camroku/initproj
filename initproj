@@ -1,0 +1,178 @@
+#!/bin/bash
+#   Toryus is free software: you can redistribute it and/or
+#   modify it under the terms of the GNU General Public License
+#   as published by the Free Software Foundation, either version
+#   3 of the License, or (at your option) any later version.
+#
+#   Toryus is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty
+#   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#   See the GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public
+#   License along with Toryus. If not, see
+#   <https://www.gnu.org/licenses/>.
+
+! getopt --test > /dev/null 
+if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+    echo 'I’m sorry, `getopt --test` failed in this environment.'
+    exit 1
+fi
+
+LONGOPTS=verbose,help
+OPTIONS=vh
+
+! PARSED=$(getopt --options=$OPTIONS --longoptions=?,$LONGOPTS --name "$0" -- "$@")
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+    exit 2
+fi
+
+eval set -- "$PARSED"
+
+v=n
+while true; do
+    case "$1" in
+        -v|--verbose)
+            v=y
+            shift
+            ;;
+        -h|--help)
+            echo "usage: $0 <project name> [arguments]"
+            echo ""
+            echo "arguments:"
+            echo -e "  -v, --verbose\t\tverbose output"
+            echo -e "  -h, --help\t\t\tshow this help message"
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "invalid option: -$1"
+            exit 3
+            ;;
+    esac
+done
+
+# vlog function for verbose logging
+vlog() {
+    if [[ $v == y ]]; then
+        echo "V: $@"
+    fi
+}
+
+# handle non-option arguments
+if [[ $# -ne 1 ]]; then
+    echo "$0: A project name is required. If the project name contains spaces, surround it with quotes."
+    exit 4
+fi
+
+proj=$1
+
+vlog Changing cwd to ~
+cd ~
+vlog Creating $proj
+mkdir $proj
+vlog Changing cwd to $proj
+cd $proj
+vlog Downloading GPLv3
+wget https://www.gnu.org/licenses/gpl-3.0.txt -O LICENSE -q
+vlog Creating README.md and .gitignore
+touch README.md .gitignore
+IFS=
+read -p "Enter a short description: " desc
+vlog Writing description to README.md
+printf "# "$proj"\n"$desc"\n" > README.md
+vlog Creating src
+mkdir src
+read -p "Enter a main file extension (${proj,,}.?): " ext
+vlog Creating src/${proj,,}.$ext and src/Makefile
+touch src/${proj,,}.$ext src/Makefile
+case "$ext" in
+    c)
+        echo "Writing hello world program to src/${proj,,}.$ext"
+        cat > src/${proj,,}.$ext <<EOF
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello, World!\n");
+    return 0;
+}
+EOF
+        cat > src/Makefile <<EOF
+CC=gcc
+SOURCES=*.$ext
+OUTPUT=${proj,,}
+CFLAGS=-Wall -Wextra -Werror
+
+build: \$(OBJECTS)
+	\$(CC) -o \$(OUTPUT) \$(SOURCES) \$(CFLAGS)
+
+install:
+	cp \$(OUTPUT) /usr/local/bin/\$(OUTPUT)
+
+clean:
+	rm -f \$(OBJECTS) \$(OUTPUT)
+EOF
+        echo "src/${proj,,}" >> .gitignore
+        ;;
+    cpp)
+        echo "Writing hello world program to src/${proj,,}.$ext"
+        cat > src/${proj,,}.$ext <<EOF
+#include <iostream>
+
+int main(void) {
+    std::cout << "Hello, World!" << std::endl;
+    return 0;
+}
+EOF
+        cat > src/Makefile <<EOF
+CC=g++
+SOURCES=*.$ext
+OUTPUT=${proj,,}
+CFLAGS=-Wall -Wextra -Werror
+
+build: \$(OBJECTS)
+	\$(CC) -o \$(OUTPUT) \$(SOURCES) \$(CFLAGS)
+
+install:
+	cp \$(OUTPUT) /usr/local/bin/\$(OUTPUT)
+
+clean:
+	rm -f \$(OBJECTS) \$(OUTPUT)
+EOF
+        echo "src/${proj,,}" >> .gitignore
+        ;;
+    java)
+        echo "Writing hello world program to src/${proj,,}.$ext"
+        cat > src/${proj,,}.$ext <<EOF
+import java.io.PrintStream;
+
+public class ${proj,,} {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}
+EOF
+        ;;
+    python)
+        echo "Writing hello world program to src/${proj,,}.$ext"
+        cat > src/${proj,,}.$ext <<EOF
+print("Hello, World!")
+EOF
+        ;;
+    rb)
+        echo "Writing hello world program to src/${proj,,}.$ext"
+        cat > src/${proj,,}.$ext <<EOF 
+puts "Hello, World!"
+EOF
+        ;;
+    *)
+        echo "Couldn't recognize language $ext, not writing a hello world program."
+        ;;
+esac
+git init >/dev/null 2>&1
+git add * >/dev/null 2>&1
+git commit -m "Initial commit by initproj" >/dev/null 2>&1
+echo Initialized a project named $proj for you! Run \`cd ${proj,,}\` to start working on it.
